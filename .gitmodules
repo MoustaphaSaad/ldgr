@@ -1,3 +1,6 @@
 [submodule "deps/cpprelude"]
 	path = deps/cpprelude
 	url = git@github.com:MoustaphaSaad/cpprelude.git
+[submodule "deps/entt"]
+	path = deps/entt
+	url = git@github.com:skypjack/entt.git

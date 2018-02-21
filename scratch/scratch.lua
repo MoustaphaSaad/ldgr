@@ -9,7 +9,8 @@ project "scratch"
 	includedirs {
 		"include/",
 		cpprelude_path .. "/include/",
-		ldgr_path .. "/include/"
+		ldgr_path .. "/include/",
+		entt_path .. "/src/"
 	}
 
 	links {"cpprelude", "ldgr"}

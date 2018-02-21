@@ -11,6 +11,7 @@ end
 bin_path 		= path.getabsolute("bin")
 build_path 		= path.getabsolute("build")
 cpprelude_path 	= path.getabsolute("deps/cpprelude/cpprelude")
+entt_path 		= path.getabsolute("deps/entt")
 ldgr_path		= path.getabsolute("ldgr")
 
 workspace "ldgr"

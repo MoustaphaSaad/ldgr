@@ -19,7 +19,7 @@ namespace ldgr
 	{
 		ID id = INVALID_ID;
 		Entity entity;
-		Base_Type_Utils *_type_utils;
+		Base_Type_Utils *_type_utils = nullptr;
 		cpprelude::slice<cpprelude::byte> _data;
 	};
 
