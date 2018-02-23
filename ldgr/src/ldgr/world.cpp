@@ -18,38 +18,13 @@ namespace ldgr
 	Entity
 	World::create_entity()
 	{
-		cpprelude::usize id = _entities_bag.insert(Entity());
-		Entity& entity = _entities_bag[id];
-		entity.id = id;
-		entity.world = this;
-		return entity;
-	}
-
-	bool
-	World::remove_entity(Entity& entity)
-	{
-		bool result = _entities_bag.remove(entity.id);
-		entity.id = INVALID_ID;
-		entity.world = nullptr;
-		return result;
-	}
-
-	bool
-	World::remove_entity(Entity&& entity)
-	{
-		return remove_entity(entity);
+		return Entity{ _entities_bag.insert(), this };
 	}
 
 	bool
 	World::remove_entity(ID entity_id)
 	{
 		return _entities_bag.remove(entity_id);
-	}
-
-	bool
-	World::entity_exists(const Entity& entity) const
-	{
-		return entity_exists(entity.id);
 	}
 
 	bool

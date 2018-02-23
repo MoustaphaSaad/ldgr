@@ -22,7 +22,7 @@ namespace ldgr
 	struct World
 	{
 		cpprelude::memory_context *_mem_context;
-		Bag<Entity> _entities_bag;
+		ID_Bag _entities_bag;
 		// Bag<Base_Component> _components_bag;
 		// ID _id_generator;
 		// cpprelude::hash_array<ID, Entity_Ledger_Entry> _entities;
@@ -32,17 +32,47 @@ namespace ldgr
 		API_LDGR Entity
 		create_entity();
 
-		API_LDGR bool
-		remove_entity(Entity& entity);
+		template<typename TEntity>
+		void
+		insert_entity(TEntity& entity)
+		{
+			entity.id = _entities_bag.insert();
+			entity.world = this;
+		}
 
-		API_LDGR bool
-		remove_entity(Entity&& entity);
+		template<typename TEntity>
+		void
+		insert_entity(TEntity&& entity)
+		{
+			insert_entity(entity);
+		}
+
+		template<typename TEntity>
+		bool
+		remove_entity(TEntity& entity)
+		{
+			bool result = _entities_bag.remove(entity.id);
+			entity.id = INVALID_ID;
+			entity.world = nullptr;
+			return result;
+		}
+
+		template<typename TEntity>
+		bool
+		remove_entity(Entity&& entity)
+		{
+			return remove_entity(entity);
+		}
 
 		API_LDGR bool
 		remove_entity(ID entity_id);
 
-		API_LDGR bool
-		entity_exists(const Entity& entity) const;
+		template<typename TEntity>
+		bool
+		entity_exists(const TEntity& entity) const
+		{
+			return _entities_bag.has(entity.id);
+		}
 
 		API_LDGR bool
 		entity_exists(ID entity_id) const;
@@ -105,5 +135,52 @@ namespace ldgr
 
 		// 	return result;
 		// }
+	};
+
+	struct Base_Entity
+	{
+		ID id;
+		World *world;
+
+		Base_Entity()
+			:id(INVALID_ID),
+			 world(nullptr)
+		{}
+
+		Base_Entity(const Base_Entity& other) = delete;
+
+		Base_Entity&
+		operator=(const Base_Entity& other) = delete;
+
+		Base_Entity(Base_Entity&& other)
+			:id(other.id),
+			 world(other.world)
+		{
+			other.id = INVALID_ID;
+			other.world = nullptr;
+		}
+
+		Base_Entity&
+		operator=(Base_Entity&& other)
+		{
+			//reset the entity
+			if(world)
+				world->remove_entity(id);
+
+			//move the values
+			id = other.id;
+			world = other.world;
+			//reset the other
+			other.id = INVALID_ID;
+			other.world = nullptr;
+		}
+
+		virtual ~Base_Entity()
+		{
+			if(world)
+				world->remove_entity(id);
+			id = INVALID_ID;
+			world = nullptr;
+		}
 	};
 }

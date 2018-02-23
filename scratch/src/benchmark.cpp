@@ -2,10 +2,17 @@
 #include "ldgr/world.h"
 #include <cpprelude/micro_benchmark.h>
 #include <cpprelude/dynamic_array.h>
+#include <cpprelude/allocator.h>
 #include <entt/entt.hpp>
 using namespace cpprelude;
 using namespace ldgr;
 
+
+arena_t arena(MEGABYTES(100));
+struct koko: Base_Entity
+{
+	int x;
+};
 
 usize
 bm_entites(workbench *bench, usize limit)
@@ -16,8 +23,9 @@ bm_entites(workbench *bench, usize limit)
 	World world;
 
 	bench->watch.start();
+		Entity entity;
 		for(usize i = 0; i < limit; ++i)
-			world.create_entity();
+			world.insert_entity(entity);
 
 		for (usize i = 0; i < limit; ++i)
 		{
@@ -36,7 +44,7 @@ bm_entt_entities(workbench *bench, usize limit)
 	usize result = 0;
 	usize offset = rand();
 
-	entt::Registry<u64> world;
+	entt::DefaultRegistry world;
 
 	bench->watch.start();
 	for (usize i = 0; i < limit; ++i)
@@ -58,7 +66,7 @@ void
 benchmark()
 {
 	srand(time(0));
-	usize limit = 100000;
+	usize limit = 10000;
 
 	compare_benchmark(std::cout, {
 		CPPRELUDE_BENCHMARK(bm_entt_entities, limit),
