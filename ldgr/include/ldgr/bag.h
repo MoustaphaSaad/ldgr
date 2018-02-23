@@ -65,6 +65,7 @@ namespace ldgr
 		bool
 		has(cpprelude::usize id) const
 		{
+			if (id >= _sparse_to_dense.count()) return false;
 			return _sparse_to_dense[id] != INVALID_ID;
 		}
 

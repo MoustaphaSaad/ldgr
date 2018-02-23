@@ -1,6 +1,7 @@
 #pragma once
 #include <cpprelude/defines.h>
 #include <cpprelude/memory.h>
+#include <cpprelude/string.h>
 #include <ldgr/type_utils.h>
 
 namespace ldgr
@@ -19,6 +20,7 @@ namespace ldgr
 	{
 		ID id = INVALID_ID;
 		Entity entity;
+		cpprelude::string name;
 		Base_Type_Utils *_type_utils = nullptr;
 		cpprelude::slice<cpprelude::byte> _data;
 	};

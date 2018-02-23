@@ -20,10 +20,11 @@ bm_entites(workbench *bench, usize limit)
 	usize result = 0;
 	usize offset = rand();
 
-	World world;
+	World world(arena);
 
 	bench->watch.start();
 		Entity entity;
+		world.reserve_entites(limit);
 		for(usize i = 0; i < limit; ++i)
 			world.insert_entity(entity);
 

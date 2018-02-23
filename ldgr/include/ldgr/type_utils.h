@@ -41,6 +41,9 @@ namespace ldgr
 		cpprelude::usize hash;
 		cpprelude::usize size;
 		cpprelude::usize alignment;
+
+		virtual void
+		invoke_destructor(const cpprelude::slice<cpprelude::byte>& data) = 0;
 	};
 
 	template<typename T>
@@ -52,6 +55,14 @@ namespace ldgr
 			hash = cpprelude::hash_bytes(name.data(), name.size());
 			size = sizeof(T);
 			alignment = alignof(T);
+		}
+
+		void
+		invoke_destructor(const cpprelude::slice<cpprelude::byte>& data) override
+		{
+			auto values = data.template convert<T>();
+			for(usize i = 0; i < values.count(); ++i)
+				values[i].~T();
 		}
 	};
 

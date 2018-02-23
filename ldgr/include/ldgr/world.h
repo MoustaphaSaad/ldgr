@@ -4,31 +4,59 @@
 #include "ldgr/type_utils.h"
 #include "ldgr/bag.h"
 #include <cpprelude/hash_array.h>
-#include <cpprelude/slinked_list.h>
+#include <cpprelude/dynamic_array.h>
 #include <cpprelude/memory_context.h>
 #include <cpprelude/platform.h>
+#include <cpprelude/string.h>
+#include <cassert>
+
+namespace cpprelude
+{
+	template<>
+	struct hash<ldgr::Base_Type_Utils*>
+	{
+		inline usize
+		operator()(ldgr::Base_Type_Utils* ptr) const
+		{
+			return reinterpret_cast<usize>(ptr);
+		}
+	};
+}
 
 namespace ldgr
 {
 	struct Entity_Ledger_Entry
 	{
 		ID id;
-		cpprelude::dynamic_array<Base_Component> _components;
+		cpprelude::hash_set<ID> _components_ids;
+		cpprelude::hash_array<cpprelude::string, ID> _components_by_name;
 
 		API_LDGR Entity_Ledger_Entry(ID entity_id = INVALID_ID,
 			cpprelude::memory_context *context = cpprelude::platform->global_memory);
+	};
+
+	struct Component_Type_Ledger_Entry
+	{
+		cpprelude::memory_context* _component_context;
+		Base_Type_Utils* _type_utils;
+		cpprelude::hash_set<ID> _components;
+
+		API_LDGR Component_Type_Ledger_Entry(Base_Type_Utils* type = nullptr,
+			cpprelude::memory_context* array_context = cpprelude::platform->global_memory,
+			cpprelude::memory_context* component_context = cpprelude::platform->global_memory);
 	};
 
 	struct World
 	{
 		cpprelude::memory_context *_mem_context;
 		ID_Bag _entities_bag;
-		// Bag<Base_Component> _components_bag;
-		// ID _id_generator;
-		// cpprelude::hash_array<ID, Entity_Ledger_Entry> _entities;
+		Bag<Base_Component> _components_bag;
+		cpprelude::hash_array<ID, Entity_Ledger_Entry> _entities_ldgr;
+		cpprelude::hash_array<Base_Type_Utils*, Component_Type_Ledger_Entry> _components_by_type;
 
 		API_LDGR World(cpprelude::memory_context *context = cpprelude::platform->global_memory);
 
+		//Entity Functions
 		API_LDGR Entity
 		create_entity();
 
@@ -51,7 +79,7 @@ namespace ldgr
 		bool
 		remove_entity(TEntity& entity)
 		{
-			bool result = _entities_bag.remove(entity.id);
+			bool result = remove_entity(entity.id);
 			entity.id = INVALID_ID;
 			entity.world = nullptr;
 			return result;
@@ -61,7 +89,10 @@ namespace ldgr
 		bool
 		remove_entity(Entity&& entity)
 		{
-			return remove_entity(entity);
+			bool result = remove_entity(entity.id);
+			entity.id = INVALID_ID;
+			entity.world = nullptr;
+			return result;
 		}
 
 		API_LDGR bool
@@ -77,19 +108,161 @@ namespace ldgr
 		API_LDGR bool
 		entity_exists(ID entity_id) const;
 
-		// template<typename T>
-		// Component<T>
-		// create_component(const Entity& entity, const T& data)
-		// {
-		// 	Component<T> result;
-		// 	result.id = _id_generator++;
-		// 	result.entity = entity;
-		// 	result._type_utils = type_utils<T>();
-		// 	result._data = _mem_context->template alloc<byte>(sizeof(T));
-		// 	new (result._data) T(data);
-		// 	_entities[entity.id]._components.emplace_back(result);
-		// 	return result;
-		// }
+		API_LDGR void
+		reserve_entites(cpprelude::usize expected_size);
+
+
+		//Component Functions
+		template<typename TComponent, typename TEntity>
+		Component<TComponent>
+		create_component(const TEntity& entity, const cpprelude::string& name, const TComponent& data)
+		{
+			return create_component(entity.id, name, data);
+		}
+
+		template<typename TComponent>
+		Component<TComponent>
+		create_component(ID entity_id, const cpprelude::string& name, const TComponent& data)
+		{
+			assert(!has_component(entity_id, name));
+
+			Component<TComponent> result;
+			result.entity.id = entity_id;
+			result.entity.world = this;
+			result.name = name;
+			result._type_utils = type_utils<TComponent>();
+			result._data = _mem_context->template alloc<byte>(sizeof(TComponent));
+			new (result._data) TComponent(data);
+
+			//insert the component into the world
+			auto id = _components_bag.insert(result);
+			auto& component = _components_bag[id];
+			component.id = id;
+
+			//add the id to the result component
+			result.id = id;
+			_add_component_to_entity(result.entity.id, result);
+			return result;
+		}
+
+		template<typename TComponent, typename TEntity>
+		Component<TComponent>
+		create_component(const TEntity& entity, const cpprelude::string& name, TComponent&& data)
+		{
+			return create_component(entity.id, name, std::move(data));
+		}
+
+		template<typename TComponent>
+		Component<TComponent>
+		create_component(ID entity_id, const cpprelude::string& name, TComponent&& data)
+		{
+			assert(!has_component(entity_id, name));
+
+			Component<TComponent> result;
+			result.entity.id = entity_id;
+			result.entity.world = this;
+			result.name = name;
+			result._type_utils = type_utils<TComponent>();
+			result._data = _mem_context->template alloc<byte>(sizeof(TComponent));
+			new (result._data) TComponent(std::move(data));
+
+			//insert the component into the world
+			auto id = _components_bag.insert(result);
+			auto& component = _components_bag[id];
+			component.id = id;
+
+			//add the id to the result component
+			result.id = id;
+			_add_component_to_entity(result.entity.id, result);
+			return result;
+		}
+
+		template<typename TComponent, typename TEntity, typename ... TArgs>
+		Component<TComponent>
+		emplace_component(const TEntity& entity, const cpprelude::string& name, TArgs&& ... args)
+		{
+			return create_component(entity.id, name, std::forward<TArgs>(args)...);
+		}
+
+		template<typename TComponent, typename ... TArgs>
+		Component<TComponent>
+		emplace_component(ID entity_id, const cpprelude::string& name, TArgs&& ... args)
+		{
+			assert(!has_component(entity_id, name));
+
+			Component<TComponent> result;
+			result.entity.id = entity_id;
+			result.entity.world = this;
+			result.name = name;
+			result._type_utils = type_utils<TComponent>();
+			result._data = _mem_context->template alloc<byte>(sizeof(TComponent));
+			new (result._data) TComponent(std::forward<TArgs>(args)...);
+
+			//insert the component into the world
+			auto id = _components_bag.insert(result);
+			auto& component = _components_bag[id];
+			component.id = id;
+
+			//add the id to the result component
+			result.id = id;
+			_add_component_to_entity(result.entity.id, result);
+			return result;
+		}
+
+		template<typename TEntity>
+		bool
+		has_component(const TEntity& entity, const cpprelude::string& name)
+		{
+			return has_component(entity.id, name);
+		}
+
+		API_LDGR bool
+		has_component(ID entity_id, const cpprelude::string& name);
+
+		template<typename TEntity>
+		bool
+		has_component(const TEntity& entity, ID component_id)
+		{
+			return has_component(entity.id, component_id);
+		}
+
+		API_LDGR bool
+		has_component(ID entity_id, ID component_id);
+
+		API_LDGR bool
+		remove_component(ID component_id);
+
+
+		template<typename TComponent>
+		void
+		_add_component_to_entity(ID entity_id, const Component<TComponent>& component)
+		{
+			//insert into the _entities_ldgr
+			{
+				auto it = _entities_ldgr.lookup(entity_id);
+				//no entry for the entity then add it
+				if(it == _entities_ldgr.end())
+					it = _entities_ldgr.insert(entity_id, Entity_Ledger_Entry(entity_id, _mem_context));
+				//add the component id
+				it->_components_ids.insert(component.id);
+				it->_components_by_name.insert(component.name, component.id);
+			}
+
+			//insert into the components ldgr
+			{
+				auto it = _components_by_type.lookup(component._type_utils);
+				if(it == _components_by_type.end())
+				{
+					it = _components_by_type.insert(component._type_utils,
+													Component_Type_Ledger_Entry(component._type_utils,
+														_mem_context, _mem_context));
+				}
+				it->_components.insert(component.id);
+			}
+		}
+
+		API_LDGR void
+		_destroy_component(ID component_id);
 
 		// API_LDGR cpprelude::dynamic_array<Base_Component>&
 		// get_all_components(const Entity& entity);
