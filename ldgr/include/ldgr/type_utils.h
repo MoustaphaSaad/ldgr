@@ -1,9 +1,6 @@
 #pragma once
-#include "ldgr/api.h"
 #include <cpprelude/string.h>
-#include <cpprelude/platform.h>
-#include <cpprelude/memory_context.h>
-#include <cpprelude/hash_array.h>
+#include <cpprelude/memory.h>
 #include <string.h>
 
 namespace ldgr
@@ -27,18 +24,33 @@ namespace ldgr
 			}
 		};
 
+		static constexpr cpprelude::usize
+		type_id(void)
+		{
+			static cpprelude::usize generator = 0;
+			return generator++;
+		}
+
 		template <typename T>
 		constexpr cpprelude::string
 		get_type_name(void)
 		{
 			return internal::Name_Helper<T>::type_name();
 		}
+
+		template<typename T>
+		constexpr cpprelude::usize
+		get_type_id(void)
+		{
+			static cpprelude::usize id = internal::type_id();
+			return id;
+		}
 	}
 
 	struct Base_Type_Utils
 	{
 		cpprelude::string name;
-		cpprelude::usize hash;
+		cpprelude::usize id;
 		cpprelude::usize size;
 		cpprelude::usize alignment;
 
@@ -52,7 +64,7 @@ namespace ldgr
 		Type_Utils()
 		{
 			name = internal::get_type_name<T>();
-			hash = cpprelude::hash_bytes(name.data(), name.size());
+			id = internal::get_type_id<T>();
 			size = sizeof(T);
 			alignment = alignof(T);
 		}

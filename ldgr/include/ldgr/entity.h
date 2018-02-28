@@ -1,55 +1,74 @@
 #pragma once
 #include <cpprelude/defines.h>
-#include <cpprelude/memory.h>
 #include <cpprelude/string.h>
-#include <ldgr/type_utils.h>
+#include "ldgr/type_utils.h"
 
 namespace ldgr
 {
-	using ID = cpprelude::usize;
-	constexpr static ID INVALID_ID = static_cast<ID>(-1);
+	struct ID
+	{
+		cpprelude::u32 id = -1;
+		cpprelude::u32 version = -1;
+
+		inline bool
+		operator==(const ID& other) const
+		{
+			return id == other.id && version == other.version;
+		}
+
+		inline bool
+		operator!=(const ID& other) const
+		{
+			return !operator==(other);
+		}
+
+		inline bool
+		valid()
+		{
+			return (id == -1 && version == -1);
+		}
+	};
+
+	struct Internal_Component
+	{
+		ID id;
+		ID entity;
+		cpprelude::string name;
+		Base_Type_Utils* _type;
+		void* _data;
+	};
 
 	struct World;
-	struct Entity
-	{
-		ID id = INVALID_ID;
-		World *world = nullptr;
-	};
-
-	struct Base_Component
-	{
-		ID id = INVALID_ID;
-		Entity entity;
-		cpprelude::string name;
-		Base_Type_Utils *_type_utils = nullptr;
-		cpprelude::slice<cpprelude::byte> _data;
-	};
 
 	template<typename T>
-	struct Component: Base_Component
+	struct Component
 	{
+		ID id;
+		T *_data;
+		World *_world;
+
 		T*
 		operator->()
 		{
-			return (T*)_data.ptr;
+			return _data;
 		}
 
 		const T*
 		operator->() const
 		{
-			return (const T*)_data.ptr;
+			return _data;
 		}
 
 		T&
 		operator*()
 		{
-			return (*(T*)_data.ptr);
+			return *_data;
 		}
 
 		const T&
 		operator*() const
 		{
-			return (*(const T*)_data.ptr);
+			return *_data;
 		}
 	};
 }
